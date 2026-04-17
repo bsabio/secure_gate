@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.env
+
+# control-plane next.js specific
+control-plane/.next
+control-plane/node_modules
