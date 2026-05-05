@@ -3,6 +3,8 @@ import { evaluateRisk } from '@/lib/engine';
 import { EvaluateRequestBody, EvaluateResponseBody } from '@/lib/types';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body: EvaluateRequestBody = await req.json();
