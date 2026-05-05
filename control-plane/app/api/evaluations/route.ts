@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const { getPrisma } = await import('@/lib/prisma');
+    const prisma = getPrisma();
     const evaluations = await prisma.evaluation.findMany({
       orderBy: { ts: 'desc' },
       take: 50,
