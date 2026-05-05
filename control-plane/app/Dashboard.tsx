@@ -69,6 +69,17 @@ const PRESETS = [
       timestamp: new Date().toISOString(),
     } satisfies AuthRequest,
   },
+  {
+    id: 'custom',
+    label: '✍️ Custom Request',
+    description: 'Manually test a specific IP, User-Agent, and Location.',
+    request: {
+      ip: '127.0.0.1',
+      userAgent: 'Mozilla/5.0 (Custom Request)',
+      location: { label: 'Localhost', lat: 0, lon: 0, countryCode: 'US' },
+      timestamp: new Date().toISOString(),
+    } satisfies AuthRequest,
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -138,7 +149,7 @@ export default function Dashboard() {
       const res = await fetch('/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request: activePreset.request }),
+        body: JSON.stringify({ request: activePreset.request, scenario: activePreset.label }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data: EvaluateResponseBody = await res.json();
@@ -163,7 +174,23 @@ export default function Dashboard() {
   }, [activePreset]);
 
   // Run initial evaluation on mount
-  useEffect(() => { evaluate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { 
+    fetch('/api/evaluations')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAuditLog(data.map((d: any) => ({
+            id: d.id,
+            ts: d.ts,
+            presetLabel: d.scenario,
+            result: { action: d.action, riskScore: d.riskScore } as any,
+            durationMs: d.durationMs,
+          })));
+        }
+      })
+      .catch(console.error);
+    evaluate(); 
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={styles.root}>
@@ -229,13 +256,28 @@ export default function Dashboard() {
               <p className={styles.previewTitle}>Request Context</p>
               <div className={styles.previewGrid}>
                 <span className={styles.previewKey}>IP</span>
-                <span className={styles.previewVal}>{activePreset.request.ip}</span>
+                {activePreset.id === 'custom' ? (
+                  <input className={styles.customInput} value={activePreset.request.ip} onChange={e => setActivePreset(p => ({...p, request: {...p.request, ip: e.target.value} as any}))} />
+                ) : (
+                  <span className={styles.previewVal}>{activePreset.request.ip}</span>
+                )}
+                
                 <span className={styles.previewKey}>Location</span>
-                <span className={styles.previewVal}>{activePreset.request.location.label}</span>
+                {activePreset.id === 'custom' ? (
+                  <input className={styles.customInput} value={activePreset.request.location.label} onChange={e => setActivePreset(p => ({...p, request: {...p.request, location: {...p.request.location, label: e.target.value}} as any}))} />
+                ) : (
+                  <span className={styles.previewVal}>{activePreset.request.location.label}</span>
+                )}
+
                 <span className={styles.previewKey}>Timestamp</span>
                 <span className={styles.previewVal}>{formatTs(activePreset.request.timestamp)}</span>
+                
                 <span className={styles.previewKey}>User-Agent</span>
-                <span className={`${styles.previewVal} ${styles.previewUa}`}>{activePreset.request.userAgent}</span>
+                {activePreset.id === 'custom' ? (
+                  <input className={styles.customInput} value={activePreset.request.userAgent} onChange={e => setActivePreset(p => ({...p, request: {...p.request, userAgent: e.target.value} as any}))} />
+                ) : (
+                  <span className={`${styles.previewVal} ${styles.previewUa}`}>{activePreset.request.userAgent}</span>
+                )}
                 <span className={styles.previewKey}>Baseline</span>
                 <span className={styles.previewVal}>
                   {activePreset.request.userBaseline

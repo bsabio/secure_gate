@@ -47,6 +47,7 @@ export type SecureGateResponseType = z.infer<typeof SecureGateResponse>;
 
 export interface EvaluateRequestBody {
   request: AuthRequest;
+  scenario?: string;
 }
 
 export interface EvaluateResponseBody {

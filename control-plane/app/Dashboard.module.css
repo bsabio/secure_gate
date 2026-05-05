@@ -236,6 +236,20 @@
   font-size: 10.5px;
   color: var(--text-muted);
 }
+.customInput {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 4px 8px;
+  width: 100%;
+}
+.customInput:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
 
 /* ─── Evaluate Button ───────────────────────────────────────────────────────── */
 .evaluateBtn {
