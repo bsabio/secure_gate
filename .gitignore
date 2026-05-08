@@ -6,3 +6,5 @@ coverage
 # control-plane next.js specific
 control-plane/.next
 control-plane/node_modules
+*.db
+*.db-journal
