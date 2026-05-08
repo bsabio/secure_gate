@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm --prefix control-plane run build",
+  "outputDirectory": "control-plane/.next"
+}
