@@ -1,53 +1,65 @@
+/* ─── Google Fonts: Oswald (Headlines) + Space Grotesk (Body) + JetBrains Mono ─ */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 /* ─── Reset & Base ─────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Color System */
-  --bg-void:        #050810;
-  --bg-deep:        #080c14;
-  --bg-surface:     #0d1321;
-  --bg-panel:       #111827;
-  --bg-card:        #1a2235;
-  --bg-hover:       #1f2a40;
+  /* ── Constructivist Color Palette ── */
+  --bg-void:        #1a1a1a;
+  --bg-deep:        #0d0d0d;
+  --bg-surface:     #f5f0e8;
+  --bg-panel:       #f5f0e8;
+  --bg-card:        #ece6d9;
+  --bg-hover:       #e3dccf;
 
-  --border-subtle:  rgba(255,255,255,0.06);
-  --border-active:  rgba(99,179,237,0.3);
-  --border-glow:    rgba(99,179,237,0.5);
+  --red:            #d42b2b;
+  --red-dark:       #a51e1e;
+  --red-light:      #f44336;
+  --black:          #0d0d0d;
+  --cream:          #f5f0e8;
+  --warm-gray:      #c4b8a4;
+  --charcoal:       #2a2a2a;
 
-  --text-primary:   #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted:     #475569;
-  --text-mono:      #7dd3fc;
+  --border-subtle:  #0d0d0d;
+  --border-active:  #d42b2b;
+  --border-focus:   #d42b2b;
 
-  --cyan:           #22d3ee;
-  --cyan-dim:       #0891b2;
-  --blue:           #3b82f6;
-  --blue-dim:       #1d4ed8;
+  --text-primary:   #0d0d0d;
+  --text-secondary: #3d3d3d;
+  --text-muted:     #7a7060;
+  --text-mono:      #2a2a2a;
+  --text-inverse:   #f5f0e8;
 
-  --allow-bg:       rgba(16,185,129,0.1);
-  --allow-border:   rgba(16,185,129,0.35);
-  --allow-text:     #34d399;
-  --allow-glow:     rgba(16,185,129,0.25);
+  /* Allow = dark green on cream */
+  --allow-bg:       #0d0d0d;
+  --allow-border:   #2d6a2d;
+  --allow-text:     #4caf50;
+  --allow-dot:      #4caf50;
 
-  --challenge-bg:   rgba(245,158,11,0.1);
-  --challenge-border: rgba(245,158,11,0.35);
-  --challenge-text: #fbbf24;
-  --challenge-glow: rgba(245,158,11,0.25);
+  /* Challenge = amber on dark */
+  --challenge-bg:   #0d0d0d;
+  --challenge-border: #b8860b;
+  --challenge-text: #ffc107;
+  --challenge-dot:  #ffc107;
 
-  --block-bg:       rgba(239,68,68,0.1);
-  --block-border:   rgba(239,68,68,0.35);
-  --block-text:     #f87171;
-  --block-glow:     rgba(239,68,68,0.3);
+  /* Block = bright red on dark */
+  --block-bg:       #d42b2b;
+  --block-border:   #a51e1e;
+  --block-text:     #fff;
+  --block-dot:      #f44336;
 
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Oswald', 'Arial Black', sans-serif;
+  --font-sans: 'Space Grotesk', 'Helvetica Neue', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  16px;
-  --radius-xl:  22px;
+  --radius-none: 0px;
 
-  --transition: 200ms cubic-bezier(0.4,0,0.2,1);
+  --shadow-hard: 4px 4px 0 #0d0d0d;
+  --shadow-hard-sm: 2px 2px 0 #0d0d0d;
+  --shadow-hard-red: 4px 4px 0 #d42b2b;
+
+  --transition: 120ms cubic-bezier(0.4,0,0.2,1);
 }
 
 html { font-size: 16px; }
@@ -57,40 +69,51 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56,189,248,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 30% at 90% 80%, rgba(99,102,241,0.05) 0%, transparent 50%);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-deep); }
-::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-track { background: var(--bg-void); }
+::-webkit-scrollbar-thumb { background: var(--red); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--red-light); }
 
 /* ─── Utility ──────────────────────────────────────────────────────────────── */
 .mono { font-family: var(--font-mono); }
 .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
 
 /* ─── Animations ───────────────────────────────────────────────────────────── */
-@keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.8; }
-  70%  { box-shadow: 0 0 0 10px transparent; opacity: 0; }
-  100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
-}
 @keyframes slide-in-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px) skewX(-1deg); }
+  to   { opacity: 1; transform: translateY(0) skewX(0); }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes fade-in {
   from { opacity: 0; } to { opacity: 1; }
-}
-@keyframes sweep {
-  from { width: 0%; } to { width: var(--target-width); }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 @keyframes blink {
-  0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+  0%, 100% { opacity: 1; } 50% { opacity: 0.15; }
+}
+@keyframes diagonal-sweep {
+  from { transform: translateX(-100%) skewX(-15deg); }
+  to   { transform: translateX(200%) skewX(-15deg); }
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--red); }
+  50% { border-color: var(--red-light); }
+}
+@keyframes stamp-in {
+  0%   { transform: scale(1.4) rotate(-3deg); opacity: 0; }
+  60%  { transform: scale(0.95) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }

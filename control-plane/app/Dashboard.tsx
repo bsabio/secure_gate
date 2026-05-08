@@ -1,86 +1,91 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { EvaluateResponseBody, SecureGateResponseType, AuthRequest } from '@/lib/types';
 import styles from './Dashboard.module.css';
 
 // ─── Preset Scenarios ─────────────────────────────────────────────────────────
+// Built as a function to avoid hydration mismatch — Date.now() at module scope
+// produces different values on server vs client.
 
-const PRESETS = [
-  {
-    id: 'trusted',
-    label: '✅ Trusted Session',
-    description: 'Known device, within active hours, same city.',
-    request: {
-      ip: '192.168.1.100',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0',
-      location: { label: 'New York, US', lat: 40.7128, lon: -74.006, countryCode: 'US' },
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      userBaseline: {
-        lastLoginLocation: { label: 'New York, US', lat: 40.7128, lon: -74.006, countryCode: 'US' },
-        lastLoginTimestamp: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
-        typicalActiveHoursUTC: [12, 22] as [number, number],
-        knownUserAgents: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0'],
-      },
-    } satisfies AuthRequest,
-  },
-  {
-    id: 'cross-country',
-    label: '⚠️ Cross-Country Jump',
-    description: 'Login from London after a recent New York session.',
-    request: {
-      ip: '84.39.112.6',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) Safari/605.1 Chrome/124.0',
-      location: { label: 'London, UK', lat: 51.5074, lon: -0.1278, countryCode: 'GB' },
-      timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      userBaseline: {
-        lastLoginLocation: { label: 'New York, US', lat: 40.7128, lon: -74.006, countryCode: 'US' },
-        lastLoginTimestamp: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-        typicalActiveHoursUTC: [12, 22] as [number, number],
-        knownUserAgents: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0'],
-      },
-    } satisfies AuthRequest,
-  },
-  {
-    id: 'impossible',
-    label: '🚨 Impossible Velocity',
-    description: 'Tokyo to London in 30 minutes — physically impossible.',
-    request: {
-      ip: '185.220.101.45',
-      userAgent: 'Mozilla/5.0 HeadlessChrome/124 Safari/537.36',
-      location: { label: 'London, UK', lat: 51.5074, lon: -0.1278, countryCode: 'GB' },
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      userBaseline: {
-        lastLoginLocation: { label: 'Tokyo, JP', lat: 35.6895, lon: 139.6917, countryCode: 'JP' },
-        lastLoginTimestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-        typicalActiveHoursUTC: [12, 22] as [number, number],
-        knownUserAgents: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0'],
-      },
-    } satisfies AuthRequest,
-  },
-  {
-    id: 'bot',
-    label: '🤖 Automation Attack',
-    description: 'python-requests bot with no user baseline.',
-    request: {
-      ip: '0.0.0.0',
-      userAgent: 'python-requests/2.28.0',
-      location: { label: 'Unknown', lat: 0, lon: 0, countryCode: '' },
-      timestamp: new Date().toISOString(),
-    } satisfies AuthRequest,
-  },
-  {
-    id: 'custom',
-    label: '✍️ Custom Request',
-    description: 'Manually test a specific IP, User-Agent, and Location.',
-    request: {
-      ip: '127.0.0.1',
-      userAgent: 'Mozilla/5.0 (Custom Request)',
-      location: { label: 'Localhost', lat: 0, lon: 0, countryCode: 'US' },
-      timestamp: new Date().toISOString(),
-    } satisfies AuthRequest,
-  },
-];
+function buildPresets() {
+  const now = Date.now();
+  return [
+    {
+      id: 'trusted',
+      label: 'Trusted Session',
+      description: 'Known device, within active hours, same city.',
+      request: {
+        ip: '192.168.1.100',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0',
+        location: { label: 'New York, US', lat: 40.7128, lon: -74.006, countryCode: 'US' },
+        timestamp: new Date(now - 30 * 60 * 1000).toISOString(),
+        userBaseline: {
+          lastLoginLocation: { label: 'New York, US', lat: 40.7128, lon: -74.006, countryCode: 'US' },
+          lastLoginTimestamp: new Date(now - 8 * 3600 * 1000).toISOString(),
+          typicalActiveHoursUTC: [12, 22] as [number, number],
+          knownUserAgents: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0'],
+        },
+      } satisfies AuthRequest,
+    },
+    {
+      id: 'cross-country',
+      label: 'Cross-Country Jump',
+      description: 'Login from London after a recent New York session.',
+      request: {
+        ip: '84.39.112.6',
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) Safari/605.1 Chrome/124.0',
+        location: { label: 'London, UK', lat: 51.5074, lon: -0.1278, countryCode: 'GB' },
+        timestamp: new Date(now - 2 * 3600 * 1000).toISOString(),
+        userBaseline: {
+          lastLoginLocation: { label: 'New York, US', lat: 40.7128, lon: -74.006, countryCode: 'US' },
+          lastLoginTimestamp: new Date(now - 3 * 3600 * 1000).toISOString(),
+          typicalActiveHoursUTC: [12, 22] as [number, number],
+          knownUserAgents: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0'],
+        },
+      } satisfies AuthRequest,
+    },
+    {
+      id: 'impossible',
+      label: 'Impossible Velocity',
+      description: 'Tokyo to London in 30 minutes — physically impossible.',
+      request: {
+        ip: '185.220.101.45',
+        userAgent: 'Mozilla/5.0 HeadlessChrome/124 Safari/537.36',
+        location: { label: 'London, UK', lat: 51.5074, lon: -0.1278, countryCode: 'GB' },
+        timestamp: new Date(now - 30 * 60 * 1000).toISOString(),
+        userBaseline: {
+          lastLoginLocation: { label: 'Tokyo, JP', lat: 35.6895, lon: 139.6917, countryCode: 'JP' },
+          lastLoginTimestamp: new Date(now - 60 * 60 * 1000).toISOString(),
+          typicalActiveHoursUTC: [12, 22] as [number, number],
+          knownUserAgents: ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0'],
+        },
+      } satisfies AuthRequest,
+    },
+    {
+      id: 'bot',
+      label: 'Automation Attack',
+      description: 'python-requests bot with no user baseline.',
+      request: {
+        ip: '0.0.0.0',
+        userAgent: 'python-requests/2.28.0',
+        location: { label: 'Unknown', lat: 0, lon: 0, countryCode: '' },
+        timestamp: new Date(now).toISOString(),
+      } satisfies AuthRequest,
+    },
+    {
+      id: 'custom',
+      label: 'Custom Request',
+      description: 'Manually test a specific IP, User-Agent, and Location.',
+      request: {
+        ip: '127.0.0.1',
+        userAgent: 'Mozilla/5.0 (Custom Request)',
+        location: { label: 'Localhost', lat: 0, lon: 0, countryCode: 'US' },
+        timestamp: new Date(now).toISOString(),
+      } satisfies AuthRequest,
+    },
+  ];
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,13 +96,17 @@ function getActionStyle(action: string) {
 }
 
 function getScoreColor(score: number) {
-  if (score <= 0.3) return 'var(--allow-text)';
-  if (score <= 0.6) return 'var(--challenge-text)';
-  return 'var(--block-text)';
+  if (score <= 0.3) return '#4caf50';
+  if (score <= 0.6) return '#ffc107';
+  return '#f44336';
 }
 
 function formatTs(iso: string) {
-  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  try {
+    const d = new Date(iso);
+    // Use UTC to avoid server/client locale mismatch
+    return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  } catch { return iso; }
 }
 
 // ─── AuditEntry ───────────────────────────────────────────────────────────────
@@ -124,7 +133,7 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
       <div className={styles.scoreBarTrack}>
         <div
           className={styles.scoreBarFill}
-          style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}` }}
+          style={{ width: `${pct}%`, background: color }}
         />
       </div>
     </div>
@@ -134,7 +143,8 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const [activePreset, setActivePreset] = useState(PRESETS[0]);
+  const PRESETS = useMemo(() => buildPresets(), []);
+  const [activePreset, setActivePreset] = useState(() => buildPresets()[0]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EvaluateResponseBody | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +184,7 @@ export default function Dashboard() {
   }, [activePreset]);
 
   // Run initial evaluation on mount
-  useEffect(() => { 
+  useEffect(() => {
     fetch('/api/evaluations')
       .then(res => res.json())
       .then(data => {
@@ -189,7 +199,7 @@ export default function Dashboard() {
         }
       })
       .catch(console.error);
-    evaluate(); 
+    evaluate();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -199,7 +209,11 @@ export default function Dashboard() {
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <div className={styles.headerBrand}>
-            <span className={styles.headerIcon}>🛡</span>
+            <span className={styles.headerIcon}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" aria-hidden>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </span>
             <div>
               <h1 className={styles.headerTitle}>Secure-Gate</h1>
               <p className={styles.headerSubtitle}>Control Plane · AI Risk Engine</p>
@@ -220,7 +234,7 @@ export default function Dashboard() {
             </div>
             <div className={styles.statusDot} title="Engine Online">
               <span className={styles.statusPulse} />
-              <span className={styles.statusText}>Engine Online</span>
+              <span className={styles.statusText}>Online</span>
             </div>
           </div>
         </div>
@@ -233,8 +247,12 @@ export default function Dashboard() {
           {/* ── LEFT: Configuration Panel ──────────────────────────────────── */}
           <section className={styles.panel} aria-label="Configuration">
             <div className={styles.panelHeader}>
-              <span className={styles.panelIcon}>⚙</span>
-              <h2 className={styles.panelTitle}>Attack Scenario Simulator</h2>
+              <span className={styles.panelIcon}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" aria-hidden>
+                  <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+                </svg>
+              </span>
+              <h2 className={styles.panelTitle}>Attack Scenarios</h2>
             </div>
 
             <div className={styles.presetList}>
@@ -257,24 +275,24 @@ export default function Dashboard() {
               <div className={styles.previewGrid}>
                 <span className={styles.previewKey}>IP</span>
                 {activePreset.id === 'custom' ? (
-                  <input className={styles.customInput} value={activePreset.request.ip} onChange={e => setActivePreset(p => ({...p, request: {...p.request, ip: e.target.value} as any}))} />
+                  <input className={styles.customInput} value={activePreset.request.ip} onChange={e => setActivePreset(p => ({ ...p, request: { ...p.request, ip: e.target.value } as any }))} />
                 ) : (
                   <span className={styles.previewVal}>{activePreset.request.ip}</span>
                 )}
-                
+
                 <span className={styles.previewKey}>Location</span>
                 {activePreset.id === 'custom' ? (
-                  <input className={styles.customInput} value={activePreset.request.location.label} onChange={e => setActivePreset(p => ({...p, request: {...p.request, location: {...p.request.location, label: e.target.value}} as any}))} />
+                  <input className={styles.customInput} value={activePreset.request.location.label} onChange={e => setActivePreset(p => ({ ...p, request: { ...p.request, location: { ...p.request.location, label: e.target.value } } as any }))} />
                 ) : (
                   <span className={styles.previewVal}>{activePreset.request.location.label}</span>
                 )}
 
                 <span className={styles.previewKey}>Timestamp</span>
                 <span className={styles.previewVal}>{formatTs(activePreset.request.timestamp)}</span>
-                
+
                 <span className={styles.previewKey}>User-Agent</span>
                 {activePreset.id === 'custom' ? (
-                  <input className={styles.customInput} value={activePreset.request.userAgent} onChange={e => setActivePreset(p => ({...p, request: {...p.request, userAgent: e.target.value} as any}))} />
+                  <input className={styles.customInput} value={activePreset.request.userAgent} onChange={e => setActivePreset(p => ({ ...p, request: { ...p.request, userAgent: e.target.value } as any }))} />
                 ) : (
                   <span className={`${styles.previewVal} ${styles.previewUa}`}>{activePreset.request.userAgent}</span>
                 )}
@@ -295,9 +313,9 @@ export default function Dashboard() {
               aria-busy={loading}
             >
               {loading ? (
-                <><span className={styles.spinner} aria-hidden /> Evaluating…</>
+                <><span className={styles.spinner} aria-hidden /> Analyzing…</>
               ) : (
-                <><span aria-hidden>⚡</span> Run Evaluation</>
+                <>▸ Run Evaluation</>
               )}
             </button>
           </section>
@@ -305,20 +323,27 @@ export default function Dashboard() {
           {/* ── CENTER: Live Result ─────────────────────────────────────────── */}
           <section className={styles.panel} ref={resultRef} aria-label="Evaluation Result">
             <div className={styles.panelHeader}>
-              <span className={styles.panelIcon}>📊</span>
+              <span className={styles.panelIcon}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" aria-hidden>
+                  <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              </span>
               <h2 className={styles.panelTitle}>Real-Time Evaluation</h2>
             </div>
 
             {error && (
               <div className={styles.errorBox} role="alert">
-                <span>⚠</span> {error}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" aria-hidden>
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {error}
               </div>
             )}
 
             {loading && !result && (
               <div className={styles.loadingState}>
                 <div className={styles.loadingSpinner} aria-hidden />
-                <p>Running behavioral analysis…</p>
+                <p>Running Behavioral Analysis…</p>
               </div>
             )}
 
@@ -327,7 +352,7 @@ export default function Dashboard() {
                 {/* Big Action Badge */}
                 <div className={`${styles.actionBadge} ${getActionStyle(result.result.action)}`}>
                   <span className={styles.actionIcon}>
-                    {result.result.action === 'ALLOW' ? '✓' : result.result.action === 'CHALLENGE' ? '!' : '✕'}
+                    {result.result.action === 'ALLOW' ? '■' : result.result.action === 'CHALLENGE' ? '▲' : '✕'}
                   </span>
                   <span className={styles.actionLabel}>{result.result.action}</span>
                   <span className={styles.actionDuration}>{result.durationMs}ms</span>
@@ -358,7 +383,7 @@ export default function Dashboard() {
                 {/* Reasoning Inspector */}
                 <details className={styles.reasoningDetails}>
                   <summary className={styles.reasoningSummary}>
-                    <span>🔍 Dimension Findings</span>
+                    <span>Dimension Findings</span>
                     <span className={styles.expandHint}>click to expand</span>
                   </summary>
                   <div className={styles.reasoningBody}>
@@ -380,7 +405,9 @@ export default function Dashboard() {
 
             {!result && !loading && !error && (
               <div className={styles.emptyState}>
-                <span className={styles.emptyIcon}>🛡</span>
+                <svg className={styles.emptyIcon} width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" aria-hidden>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
                 <p>Select a scenario and run an evaluation.</p>
               </div>
             )}
@@ -389,13 +416,17 @@ export default function Dashboard() {
           {/* ── RIGHT: Audit Log ────────────────────────────────────────────── */}
           <section className={styles.panel} aria-label="Audit Log">
             <div className={styles.panelHeader}>
-              <span className={styles.panelIcon}>📋</span>
+              <span className={styles.panelIcon}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" aria-hidden>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+                </svg>
+              </span>
               <h2 className={styles.panelTitle}>Audit Log</h2>
-              <span className={styles.logCount}>{auditLog.length} entries</span>
+              <span className={styles.logCount}>{auditLog.length}</span>
             </div>
 
             {auditLog.length === 0 ? (
-              <p className={styles.emptyLog}>No evaluations yet.</p>
+              <p className={styles.emptyLog}>No evaluations recorded.</p>
             ) : (
               <ul className={styles.logList} role="list">
                 {auditLog.map(entry => (
