@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "AI-driven security middleware for enterprise authentication",
   "main": "dist/index.js",
+  "workspaces": [
+    "control-plane"
+  ],
   "scripts": {
     "dev": "npm --prefix control-plane run dev",
     "build": "npm --prefix control-plane run build",
