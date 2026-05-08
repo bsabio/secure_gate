@@ -4,7 +4,8 @@
   "description": "AI-driven security middleware for enterprise authentication",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "dev": "npm --prefix control-plane run dev",
+    "build": "npm --prefix control-plane run build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
