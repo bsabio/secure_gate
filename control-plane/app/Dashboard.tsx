@@ -8,7 +8,14 @@ import styles from './Dashboard.module.css';
 // Built as a function to avoid hydration mismatch — Date.now() at module scope
 // produces different values on server vs client.
 
-function buildPresets() {
+type Preset = {
+  id: string;
+  label: string;
+  description: string;
+  request: AuthRequest;
+};
+
+function buildPresets(): Preset[] {
   const now = Date.now();
   return [
     {
@@ -111,12 +118,37 @@ function formatTs(iso: string) {
 
 // ─── AuditEntry ───────────────────────────────────────────────────────────────
 
+type AuditResult = Pick<SecureGateResponseType, 'action' | 'riskScore'>;
+
 interface AuditEntry {
   id: string;
   ts: string;
   presetLabel: string;
-  result: SecureGateResponseType;
+  result: AuditResult;
   durationMs: number;
+}
+
+interface EvaluationRecord {
+  id: string;
+  ts: string;
+  scenario: string;
+  action: SecureGateResponseType['action'];
+  riskScore: number;
+  durationMs: number;
+}
+
+function isEvaluationRecord(value: unknown): value is EvaluationRecord {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  const action = record.action;
+  return (
+    typeof record.id === 'string' &&
+    typeof record.ts === 'string' &&
+    typeof record.scenario === 'string' &&
+    (action === 'ALLOW' || action === 'CHALLENGE' || action === 'BLOCK') &&
+    typeof record.riskScore === 'number' &&
+    typeof record.durationMs === 'number'
+  );
 }
 
 // ─── ScoreBar ────────────────────────────────────────────────────────────────
@@ -143,14 +175,21 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const PRESETS = useMemo(() => buildPresets(), []);
-  const [activePreset, setActivePreset] = useState(() => buildPresets()[0]);
+  const presets = useMemo(() => buildPresets(), []);
+  const [activePreset, setActivePreset] = useState<Preset>(() => presets[0] ?? buildPresets()[0]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EvaluateResponseBody | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [evalCount, setEvalCount] = useState(0);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  const updateCustomRequest = useCallback((updater: (request: AuthRequest) => AuthRequest) => {
+    setActivePreset((prev) => {
+      if (prev.id !== 'custom') return prev;
+      return { ...prev, request: updater(prev.request) };
+    });
+  }, []);
 
   const evaluate = useCallback(async () => {
     setLoading(true);
@@ -170,7 +209,7 @@ export default function Dashboard() {
           id: crypto.randomUUID(),
           ts: new Date().toISOString(),
           presetLabel: activePreset.label,
-          result: data.result,
+          result: { action: data.result.action, riskScore: data.result.riskScore },
           durationMs: data.durationMs,
         },
         ...prev.slice(0, 19),
@@ -189,18 +228,20 @@ export default function Dashboard() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setAuditLog(data.map((d: any) => ({
-            id: d.id,
-            ts: d.ts,
-            presetLabel: d.scenario,
-            result: { action: d.action, riskScore: d.riskScore } as any,
-            durationMs: d.durationMs,
-          })));
+          const entries = data
+            .filter(isEvaluationRecord)
+            .map((entry) => ({
+              id: entry.id,
+              ts: entry.ts,
+              presetLabel: entry.scenario,
+              result: { action: entry.action, riskScore: entry.riskScore },
+              durationMs: entry.durationMs,
+            }));
+          setAuditLog(entries);
         }
       })
       .catch(console.error);
-    evaluate();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className={styles.root}>
@@ -256,7 +297,7 @@ export default function Dashboard() {
             </div>
 
             <div className={styles.presetList}>
-              {PRESETS.map(p => (
+              {presets.map(p => (
                 <button
                   key={p.id}
                   id={`preset-${p.id}`}
@@ -275,14 +316,25 @@ export default function Dashboard() {
               <div className={styles.previewGrid}>
                 <span className={styles.previewKey}>IP</span>
                 {activePreset.id === 'custom' ? (
-                  <input className={styles.customInput} value={activePreset.request.ip} onChange={e => setActivePreset(p => ({ ...p, request: { ...p.request, ip: e.target.value } as any }))} />
+                  <input
+                    className={styles.customInput}
+                    value={activePreset.request.ip}
+                    onChange={e => updateCustomRequest(request => ({ ...request, ip: e.target.value }))}
+                  />
                 ) : (
                   <span className={styles.previewVal}>{activePreset.request.ip}</span>
                 )}
 
                 <span className={styles.previewKey}>Location</span>
                 {activePreset.id === 'custom' ? (
-                  <input className={styles.customInput} value={activePreset.request.location.label} onChange={e => setActivePreset(p => ({ ...p, request: { ...p.request, location: { ...p.request.location, label: e.target.value } } as any }))} />
+                  <input
+                    className={styles.customInput}
+                    value={activePreset.request.location.label}
+                    onChange={e => updateCustomRequest(request => ({
+                      ...request,
+                      location: { ...request.location, label: e.target.value },
+                    }))}
+                  />
                 ) : (
                   <span className={styles.previewVal}>{activePreset.request.location.label}</span>
                 )}
@@ -292,7 +344,11 @@ export default function Dashboard() {
 
                 <span className={styles.previewKey}>User-Agent</span>
                 {activePreset.id === 'custom' ? (
-                  <input className={styles.customInput} value={activePreset.request.userAgent} onChange={e => setActivePreset(p => ({ ...p, request: { ...p.request, userAgent: e.target.value } as any }))} />
+                  <input
+                    className={styles.customInput}
+                    value={activePreset.request.userAgent}
+                    onChange={e => updateCustomRequest(request => ({ ...request, userAgent: e.target.value }))}
+                  />
                 ) : (
                   <span className={`${styles.previewVal} ${styles.previewUa}`}>{activePreset.request.userAgent}</span>
                 )}
