@@ -176,7 +176,8 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
 
 export default function Dashboard() {
   const presets = useMemo(() => buildPresets(), []);
-  const [activePreset, setActivePreset] = useState<Preset>(() => presets[0] ?? buildPresets()[0]);
+  const defaultPreset = presets[0] ?? buildPresets()[0]!;
+  const [activePreset, setActivePreset] = useState<Preset>(() => defaultPreset);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EvaluateResponseBody | null>(null);
   const [error, setError] = useState<string | null>(null);

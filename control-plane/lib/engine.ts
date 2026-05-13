@@ -72,7 +72,11 @@ function analyzeDevice(req: AuthRequest) {
   if (!req.userBaseline || req.userBaseline.knownUserAgents.length === 0) return { dimension: dim, score: 0.25, finding: 'No known device baseline; UA is unverified but shows no automation signals.' };
   const known = req.userBaseline.knownUserAgents;
   if (known.includes(ua)) return { dimension: dim, score: 0.0, finding: 'User-Agent exactly matches a known trusted device fingerprint.' };
-  const fam = (s: string) => { const m = s.match(/(Chrome|Firefox|Safari|Edge|Edg|OPR|Opera)\/[\d.]+/i); return m ? m[1].toLowerCase() : null; };
+  const fam = (s: string) => {
+    const m = s.match(/(Chrome|Firefox|Safari|Edge|Edg|OPR|Opera)\/([\d.]+)/i);
+    const family = m?.[1];
+    return family ? family.toLowerCase() : null;
+  };
   const inFam = fam(ua);
   if (inFam && known.some(k => fam(k) === inFam)) return { dimension: dim, score: 0.15, finding: `Browser family "${inFam}" is known but version differs — likely an auto-update.` };
   return { dimension: dim, score: 0.45, finding: `UA "${ua}" does not match any known device fingerprint for this account.` };
