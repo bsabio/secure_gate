@@ -90,6 +90,19 @@ describe('evaluateRisk — Secure-Gate Behavioral Analysis Engine', () => {
       evaluateRisk(lowRiskRequest);
       expect(lowRiskRequest).toEqual(snapshot);
     });
+
+    it('should return the expected aggregate score when baseline is missing', () => {
+      const result = evaluateRisk(makeRequest({ userBaseline: undefined }));
+      // Geo=0.5, Temporal=0.3, Device=0.25 → 0.3750
+      expect(result.riskScore).toBe(0.375);
+      expect(result.action).toBe('ALLOW');
+    });
+
+    it('should assign UNKNOWN location score when geolocation is missing', () => {
+      const result = evaluateRisk(makeRequest({ location: UNKNOWN }));
+      const geo = result.signals.find((s) => s.dimension === 'GeographicVelocity')!;
+      expect(geo.score).toBe(0.75);
+    });
   });
 
   // ── ALLOW path ───────────────────────────────────────────────────────────────

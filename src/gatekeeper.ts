@@ -258,10 +258,11 @@ function analyzeDeviceIntegrity(request: AuthRequest): RiskSignal {
   }
 
   // Same browser family, different version (common after browser auto-update)
-  const extractFamily = (s: string) => {
-    const m = s.match(/(Chrome|Firefox|Safari|Edge|Edg|OPR|Opera)\/[\d.]+/i);
-    return m ? m[1].toLowerCase() : null;
-  };
+    const extractFamily = (s: string) => {
+      const m = s.match(/(Chrome|Firefox|Safari|Edge|Edg|OPR|Opera)\/([\d.]+)/i);
+      const family = m?.[1];
+      return family ? family.toLowerCase() : null;
+    };
 
   const incomingFamily = extractFamily(ua);
   if (incomingFamily) {

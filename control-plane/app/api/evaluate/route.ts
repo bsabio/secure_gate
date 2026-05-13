@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { evaluateRisk } from '@/lib/engine';
-import { EvaluateRequestBody, EvaluateResponseBody } from '@/lib/types';
+import { EvaluateRequestSchema, EvaluateResponseBody } from '@/lib/types';
+import { jsonError, getClientIp } from '@/lib/http';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { logError, logInfo, logWarn } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID();
+  const clientIp = getClientIp(req.headers);
+
+  const limit = checkRateLimit(clientIp);
+  if (!limit.allowed) {
+    logWarn('rate_limited', { requestId, clientIp, retryAfterMs: limit.retryAfterMs });
+    return jsonError(429, 'Too many requests.', { retryAfterMs: limit.retryAfterMs });
+  }
+
   try {
-    const body: EvaluateRequestBody = await req.json();
+    const rawBody = await req.json();
+    const parsed = EvaluateRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      logWarn('invalid_request', { requestId, clientIp, issues: parsed.error.flatten() });
+      return jsonError(400, 'Invalid request body.', { issues: parsed.error.flatten() });
+    }
+
+    const body = parsed.data;
     const start = Date.now();
     const result = evaluateRisk(body.request);
     const durationMs = Date.now() - start;
@@ -28,13 +47,20 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (dbErr) {
-      console.warn('[secure-gate] DB write skipped:', dbErr);
+      logWarn('db_write_skipped', { requestId, clientIp, error: String(dbErr) });
     }
 
     const response: EvaluateResponseBody = { result, durationMs };
+    logInfo('evaluation_complete', {
+      requestId,
+      clientIp,
+      riskScore: result.riskScore,
+      action: result.action,
+      durationMs,
+    });
     return NextResponse.json(response, { status: 200 });
   } catch (err) {
-    console.error('[secure-gate] evaluation error:', err);
-    return NextResponse.json({ error: 'Evaluation failed.' }, { status: 500 });
+    logError('evaluation_error', { requestId, clientIp, error: String(err) });
+    return jsonError(500, 'Evaluation failed.');
   }
 }

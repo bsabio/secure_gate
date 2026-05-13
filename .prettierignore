@@ -1,0 +1,7 @@
+node_modules
+coverage
+dist
+control-plane/.next
+control-plane/out
+control-plane/build
+control-plane/.vercel
